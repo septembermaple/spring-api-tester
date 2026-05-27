@@ -171,17 +171,8 @@ public class GitDiffAnalyzer {
                 List<ChangedEndpoint> fileEndpoints = extractChangedMethods(
                         git, repository, diff, oldCommit, newCommit);
 
-                if (fileEndpoints.isEmpty()) {
-                    // 如果无法提取具体方法，则将整个文件作为一个变更记录
-                    ChangedEndpoint endpoint = new ChangedEndpoint();
-                    endpoint.setFilePath(filePath);
-                    endpoint.setChangeType(diff.getChangeType().name());
-                    endpoint.setNewEndpoint(diff.getChangeType() == DiffEntry.ChangeType.ADD);
-                    endpoint.setDeletedEndpoint(diff.getChangeType() == DiffEntry.ChangeType.DELETE);
-                    endpoints.add(endpoint);
-                } else {
-                    endpoints.addAll(fileEndpoints);
-                }
+                // 只添加实际提取到的方法变更，不添加整个文件
+                endpoints.addAll(fileEndpoints);
             }
 
             git.close();
