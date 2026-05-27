@@ -66,7 +66,17 @@ public class MainFrame extends JFrame {
     private JTextField txtExcludePrefixes;  // 排除的前缀，逗号分隔
     private JTextField txtExcludeKeywords;  // 排除的URL关键词，逗号分隔
     private JTextField txtIncludeOnly;      // 只测试的接口
-    
+
+    // 测试用例生成配置
+    private JCheckBox chkPromptNormal;         // 正常流程
+    private JCheckBox chkPromptValidation;     // 参数校验
+    private JCheckBox chkPromptBoundary;       // 边界值
+    private JCheckBox chkPromptError;          // 异常场景
+    private JCheckBox chkPromptSecurity;       // 安全性
+    private JButton btnSelectAllPrompts;    // 全选按钮
+    private JButton btnDeselectAllPrompts;  // 取消全选按钮
+    private JSpinner spinnerTestCaseCount;  // 用例数量
+
     // 控制按钮
     private JButton btnStart;
     private JButton btnStop;
@@ -165,6 +175,7 @@ public class MainFrame extends JFrame {
         chkPerfTest = new JCheckBox("启用性能测试");
         chkPerfTest.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 13));
         chkPerfTest.setForeground(INFO_COLOR);
+        chkPerfTest.setBackground(Color.WHITE);
         
         spinnerPerfThreads = new JSpinner(new SpinnerNumberModel(10, 1, 100, 1));
         spinnerPerfThreads.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 13));
@@ -176,16 +187,49 @@ public class MainFrame extends JFrame {
         chkAutoFix = new JCheckBox("自动修复测试失败的接口");
         chkAutoFix.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 13));
         chkAutoFix.setForeground(INFO_COLOR);
+        chkAutoFix.setBackground(Color.WHITE);
         
         // 初始化接口过滤配置
         txtExcludePrefixes = new JTextField(25);
         txtExcludePrefixes.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 13));
         txtExcludePrefixes.setToolTipText("输入要排除的接口前缀，多个用逗号分隔，如: /tools,/energyApi");
-        
+
         txtIncludeOnly = new JTextField(25);
         txtIncludeOnly.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 13));
         txtIncludeOnly.setToolTipText("输入要测试的接口完整路径，如: /energyApi/report/detail");
-        
+
+        // 初始化测试用例生成配置 - 5个主类型复选框
+        chkPromptNormal = new JCheckBox("正常流程", true);
+        chkPromptNormal.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
+        chkPromptNormal.setForeground(INFO_COLOR);
+
+        chkPromptValidation = new JCheckBox("参数校验", true);
+        chkPromptValidation.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
+        chkPromptValidation.setForeground(INFO_COLOR);
+
+        chkPromptBoundary = new JCheckBox("边界值", true);
+        chkPromptBoundary.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
+        chkPromptBoundary.setForeground(INFO_COLOR);
+
+        chkPromptError = new JCheckBox("异常场景", true);
+        chkPromptError.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
+        chkPromptError.setForeground(INFO_COLOR);
+
+        chkPromptSecurity = new JCheckBox("安全性", true);
+        chkPromptSecurity.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
+        chkPromptSecurity.setForeground(INFO_COLOR);
+
+        btnSelectAllPrompts = createStyledButton("全选", new Color(52, 152, 219));
+        btnSelectAllPrompts.setPreferredSize(new Dimension(60, 28));
+        btnSelectAllPrompts.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 11));
+
+        btnDeselectAllPrompts = createStyledButton("取消全选", new Color(149, 165, 166));
+        btnDeselectAllPrompts.setPreferredSize(new Dimension(80, 28));
+        btnDeselectAllPrompts.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 11));
+
+        spinnerTestCaseCount = new JSpinner(new SpinnerNumberModel(8, 5, 20, 1));
+        spinnerTestCaseCount.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 13));
+
         // 初始化控制按钮
         btnStart = createStyledButton("开始测试", SUCCESS_COLOR);
         btnStop = createStyledButton("停止测试", ERROR_COLOR);
@@ -334,11 +378,16 @@ public class MainFrame extends JFrame {
         JPanel perfPanel = createPerfConfigPanel();
         configPanel.add(perfPanel);
         configPanel.add(Box.createVerticalStrut(15));
-        
+
+        // 测试用例生成配置面板
+        JPanel testCasePanel = createTestCaseConfigPanel();
+        configPanel.add(testCasePanel);
+        configPanel.add(Box.createVerticalStrut(15));
+
         // 功能选项面板
         JPanel optionsPanel = createOptionsPanel();
         configPanel.add(optionsPanel);
-        
+
         configPanel.add(Box.createVerticalGlue());
         
         // 将配置面板放入滚动面板，支持窗口缩小时滚动
@@ -502,16 +551,67 @@ public class MainFrame extends JFrame {
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBackground(Color.WHITE);
         panel.setBorder(createTitledBorder("功能选项", INFO_COLOR));
-        
+
         JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 8));
         row.setBackground(Color.WHITE);
         row.add(chkAutoFix);
-        
+
         panel.add(row);
-        
+
         return panel;
     }
-    
+
+    private JPanel createTestCaseConfigPanel() {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBackground(Color.WHITE);
+        panel.setBorder(createTitledBorder("测试类型配置", new Color(46, 204, 113)));
+
+        // ===== 测试类型选择区域 =====
+        JPanel typeLabelRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 8));
+        typeLabelRow.setBackground(Color.WHITE);
+        typeLabelRow.add(new JLabel("测试类型:"));
+        panel.add(typeLabelRow);
+
+        // 5个主类型复选框，每个带灰色说明文字（灰色字体，无背景）
+        JCheckBox[] checkBoxes = {chkPromptNormal, chkPromptValidation, chkPromptBoundary, chkPromptError, chkPromptSecurity};
+        String[] descriptions = {
+            "标准参数组合、多参数组合、默认值测试",
+            "必填字段缺失、格式错误、类型不匹配",
+            "极值测试、空值测试、超长值测试",
+            "无效参数、越权访问、资源不存在",
+            "SQL注入、XSS尝试、越权访问"
+        };
+
+        for (int i = 0; i < checkBoxes.length; i++) {
+            JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 2));
+            row.setBackground(Color.WHITE);
+            checkBoxes[i].setBackground(Color.WHITE);
+            row.add(checkBoxes[i]);
+
+            JLabel descLabel = new JLabel(descriptions[i]);
+            descLabel.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
+            descLabel.setForeground(new Color(150, 150, 150));
+            row.add(descLabel);
+
+            panel.add(row);
+        }
+
+        panel.add(Box.createVerticalStrut(10));
+
+        // 全选/取消全选按钮 + 用例数量
+        JPanel batchRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 8));
+        batchRow.setBackground(Color.WHITE);
+        batchRow.add(btnSelectAllPrompts);
+        batchRow.add(btnDeselectAllPrompts);
+        batchRow.add(Box.createHorizontalStrut(30));
+        batchRow.add(new JLabel("用例数量:"));
+        batchRow.add(spinnerTestCaseCount);
+        panel.add(batchRow);
+
+        return panel;
+    }
+
     private TitledBorder createTitledBorder(String title, Color color) {
         TitledBorder border = new TitledBorder(
             new LineBorder(color, 2, true),
@@ -544,13 +644,13 @@ public class MainFrame extends JFrame {
         });
         headerPanel.add(Box.createHorizontalStrut(20));
         headerPanel.add(btnClearLog);
-        
+
         panel.add(headerPanel, BorderLayout.NORTH);
         panel.add(logScrollPane, BorderLayout.CENTER);
-        
+
         return panel;
     }
-    
+
     private JPanel createBottomStatus() {
         JPanel statusPanel = new JPanel(new BorderLayout(10, 5));
         statusPanel.setBackground(new Color(245, 245, 245));
@@ -620,7 +720,26 @@ public class MainFrame extends JFrame {
             JOptionPane.showMessageDialog(this, "配置已保存成功！", "提示", JOptionPane.INFORMATION_MESSAGE);
             appendLog(PREFIX_SUCCESS + "配置已保存");
         });
-        
+
+        // 全选/取消全选按钮
+        btnSelectAllPrompts.addActionListener(e -> {
+            chkPromptNormal.setSelected(true);
+            chkPromptValidation.setSelected(true);
+            chkPromptBoundary.setSelected(true);
+            chkPromptError.setSelected(true);
+            chkPromptSecurity.setSelected(true);
+            appendLog(PREFIX_INFO + "已全选所有测试类型");
+        });
+
+        btnDeselectAllPrompts.addActionListener(e -> {
+            chkPromptNormal.setSelected(false);
+            chkPromptValidation.setSelected(false);
+            chkPromptBoundary.setSelected(false);
+            chkPromptError.setSelected(false);
+            chkPromptSecurity.setSelected(false);
+            appendLog(PREFIX_INFO + "已取消全选所有测试类型");
+        });
+
         // 窗口关闭时保存配置
         addWindowListener(new WindowAdapter() {
             @Override
@@ -1014,6 +1133,12 @@ public class MainFrame extends JFrame {
             appendLog(PREFIX_SUCCESS + "测试用例生成完成，共 " + testCases.size() + " 个用例");
             guiAiClient.close();
             
+            // ========== 测试用例浏览 ==========
+            SwingUtilities.invokeAndWait(() -> {
+                TestCaseBrowserDialog browserDialog = new TestCaseBrowserDialog(MainFrame.this, testCases);
+                browserDialog.setVisible(true);
+            });
+            
             // ========== 阶段4: 执行功能测试 ==========
             SwingUtilities.invokeLater(() -> updateProgress(50, "正在执行功能测试..."));
             appendLog(PREFIX_PROGRESS + "========== 阶段4/8: 执行功能测试 ==========");
@@ -1213,11 +1338,30 @@ public class MainFrame extends JFrame {
         
         // 自动修复
         config.setAutoFix(chkAutoFix.isSelected());
-        
+
         // 接口过滤配置
         config.setExcludePrefixes(txtExcludePrefixes.getText().trim());
         config.setIncludeOnly(txtIncludeOnly.getText().trim());
-        
+
+        // 测试用例生成配置 - 收集选中的主类型ID
+        StringBuilder promptTypes = new StringBuilder();
+        if (chkPromptNormal.isSelected()) promptTypes.append("normal,");
+        if (chkPromptValidation.isSelected()) promptTypes.append("validation,");
+        if (chkPromptBoundary.isSelected()) promptTypes.append("boundary,");
+        if (chkPromptError.isSelected()) promptTypes.append("error,");
+        if (chkPromptSecurity.isSelected()) promptTypes.append("security,");
+
+        // 移除末尾的逗号
+        String promptTypesStr = promptTypes.toString();
+        if (promptTypesStr.endsWith(",")) {
+            promptTypesStr = promptTypesStr.substring(0, promptTypesStr.length() - 1);
+        }
+        if (promptTypesStr.isEmpty()) {
+            promptTypesStr = "normal"; // 至少保留一个默认值
+        }
+        config.setTestCasePromptTypes(promptTypesStr);
+        config.setTestCaseCount((Integer) spinnerTestCaseCount.getValue());
+
         return config;
     }
     
@@ -1402,7 +1546,21 @@ public class MainFrame extends JFrame {
                 txtExcludePrefixes.setText(props.getProperty("filter.exclude.prefixes", ""));
                 txtExcludeKeywords.setText(props.getProperty("filter.exclude.keywords", ""));
                 txtIncludeOnly.setText(props.getProperty("filter.include.only", ""));
-                
+
+                // 测试用例生成配置 - 根据主类型ID恢复选中状态
+                String promptTypes = props.getProperty("testcase.promptTypes",
+                        "normal,validation,boundary,error,security");
+                java.util.Set<String> selectedIds = new java.util.HashSet<>();
+                for (String id : promptTypes.split(",")) {
+                    selectedIds.add(id.trim().toLowerCase());
+                }
+                chkPromptNormal.setSelected(selectedIds.contains("normal"));
+                chkPromptValidation.setSelected(selectedIds.contains("validation"));
+                chkPromptBoundary.setSelected(selectedIds.contains("boundary"));
+                chkPromptError.setSelected(selectedIds.contains("error"));
+                chkPromptSecurity.setSelected(selectedIds.contains("security"));
+                spinnerTestCaseCount.setValue(Integer.parseInt(props.getProperty("testcase.count", "8")));
+
             } catch (Exception e) {
                 appendLog(PREFIX_WARNING + "配置加载失败，使用默认值: " + e.getMessage());
             }
@@ -1431,12 +1589,29 @@ public class MainFrame extends JFrame {
         props.setProperty("perf.duration", spinnerPerfDuration.getValue().toString());
         
         props.setProperty("options.autoFix", String.valueOf(chkAutoFix.isSelected()));
-        
+
         // 接口过滤配置
         props.setProperty("filter.exclude.prefixes", txtExcludePrefixes.getText().trim());
         props.setProperty("filter.exclude.keywords", txtExcludeKeywords.getText().trim());
         props.setProperty("filter.include.only", txtIncludeOnly.getText().trim());
-        
+
+        // 测试用例生成配置 - 收集选中的主类型ID
+        StringBuilder promptTypes = new StringBuilder();
+        if (chkPromptNormal.isSelected()) promptTypes.append("normal,");
+        if (chkPromptValidation.isSelected()) promptTypes.append("validation,");
+        if (chkPromptBoundary.isSelected()) promptTypes.append("boundary,");
+        if (chkPromptError.isSelected()) promptTypes.append("error,");
+        if (chkPromptSecurity.isSelected()) promptTypes.append("security,");
+        String promptTypesStr = promptTypes.toString();
+        if (promptTypesStr.endsWith(",")) {
+            promptTypesStr = promptTypesStr.substring(0, promptTypesStr.length() - 1);
+        }
+        if (promptTypesStr.isEmpty()) {
+            promptTypesStr = "normal";
+        }
+        props.setProperty("testcase.promptTypes", promptTypesStr);
+        props.setProperty("testcase.count", spinnerTestCaseCount.getValue().toString());
+
         try (FileOutputStream fos = new FileOutputStream(CONFIG_FILE)) {
             props.store(fos, "Spring API Tester Configuration");
         } catch (Exception e) {

@@ -47,6 +47,12 @@ public class Config {
     private String excludePrefixes;  // 排除的接口前缀，逗号分隔
     private String includeOnly;      // 只测试的接口
 
+    // 测试用例生成配置
+    private String testCasePromptTypes = "normal,validation,boundary,error,security";  // 选中的提示词类型（逗号分隔）
+    private int testCaseCount = 8;  // 用例数量，默认8
+    private String customTestCaseFile = "custom_test_cases.json";  // 自定义用例文件路径
+    private String testCaseConfigFile = "testcase_config.properties";  // 测试用例配置文件路径
+
     public Config() {
     }
 
@@ -277,6 +283,19 @@ public class Config {
 
     public String getIncludeOnly() { return includeOnly; }
     public void setIncludeOnly(String includeOnly) { this.includeOnly = includeOnly; }
+
+    // 测试用例生成配置 Getter/Setter
+    public String getTestCasePromptTypes() { return testCasePromptTypes; }
+    public void setTestCasePromptTypes(String testCasePromptTypes) { this.testCasePromptTypes = testCasePromptTypes; }
+
+    public int getTestCaseCount() { return testCaseCount; }
+    public void setTestCaseCount(int testCaseCount) { this.testCaseCount = testCaseCount; }
+
+    public String getCustomTestCaseFile() { return customTestCaseFile; }
+    public void setCustomTestCaseFile(String customTestCaseFile) { this.customTestCaseFile = customTestCaseFile; }
+
+    public String getTestCaseConfigFile() { return testCaseConfigFile; }
+    public void setTestCaseConfigFile(String testCaseConfigFile) { this.testCaseConfigFile = testCaseConfigFile; }
 
     @Override
     public String toString() {

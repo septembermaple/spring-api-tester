@@ -1,6 +1,7 @@
 package com.autotest.ai;
 
 import com.autotest.config.Config;
+import com.autotest.config.CustomTestCaseManager;
 import com.autotest.executor.TestCase;
 import com.autotest.parser.EndpointDefinition;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -15,18 +16,21 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * 测试用例生成器 - 使用AI根据API元数据自动生成测试用例
  * <p>
  * 支持单个接口生成和批量并发生成，内置健壮的JSON解析，
  * 能够处理AI返回的各种格式（带markdown代码块、纯JSON、带前后缀文本等）。
+ * 支持根据Config中的promptTypes动态构建SYSTEM_PROMPT，以及加载自定义用例。
  */
 public class TestCaseGenerator {
 
     private static final Logger logger = Logger.getLogger(TestCaseGenerator.class.getName());
 
-    private static final String SYSTEM_PROMPT =
+    // 基础系统提示词模板
+    private static final String BASE_SYSTEM_PROMPT =
             "You are an expert API tester and QA engineer. Given an API endpoint definition, generate comprehensive test cases.\n" +
             "\n" +
             "For each test case, provide a JSON object with the following fields:\n" +
@@ -44,19 +48,11 @@ public class TestCaseGenerator {
             "- \"priority\": Test priority - \"P0\" (critical), \"P1\" (high), \"P2\" (medium), \"P3\" (low)\n" +
             "- \"tags\": Array of tag strings for categorization (e.g., [\"smoke\", \"regression\", \"security\"])\n" +
             "\n" +
-            "You MUST generate test cases covering these dimensions:\n" +
-            "1. **Normal/Happy Path** (priority: P0): Valid inputs, successful response expected\n" +
-            "2. **Parameter Validation** (priority: P1): Missing required parameters, invalid types, wrong formats\n" +
-            "3. **Boundary Values** (priority: P1): Empty strings, zero values, maximum length, minimum values\n" +
-            "4. **Error Scenarios** (priority: P2): Resource not found, conflict, unauthorized, rate limiting\n" +
-            "5. **Security Tests** (priority: P1): SQL injection, XSS in inputs, missing auth headers (if applicable)\n" +
-            "\n" +
             "IMPORTANT RULES:\n" +
             "- Return ONLY a valid JSON array, no markdown code fences, no explanatory text\n" +
             "- Each test case must be a complete, self-contained JSON object\n" +
             "- Use realistic test data values (not placeholders like \"xxx\")\n" +
             "- For body fields, use proper JSON strings with escaped quotes\n" +
-            "- Include at least 5 test cases per endpoint, covering all dimensions above\n" +
             "- Set appropriate priority levels based on test importance\n" +
             "- Add relevant tags for test categorization\n" +
             "\n" +
@@ -67,9 +63,20 @@ public class TestCaseGenerator {
             "- For Date fields, use the correct date format specified\n" +
             "- Follow the @ApiModelProperty examples when provided";
 
+    // 提示词类型定义（主类型级别）
+    private static final Map<String, String> PROMPT_TYPE_DESCRIPTIONS = new LinkedHashMap<>();
+    static {
+        PROMPT_TYPE_DESCRIPTIONS.put("normal", "**Normal Flow** (priority: P0): Test with standard valid parameter combinations, multiple parameters combined, default values - ensure normal happy path works");
+        PROMPT_TYPE_DESCRIPTIONS.put("validation", "**Parameter Validation** (priority: P1): Test with missing required fields, invalid format values, wrong data types - expect validation errors");
+        PROMPT_TYPE_DESCRIPTIONS.put("boundary", "**Boundary Values** (priority: P1): Test with maximum/minimum values, empty strings, null values, extremely long strings, oversized inputs");
+        PROMPT_TYPE_DESCRIPTIONS.put("error", "**Error Scenarios** (priority: P2): Test with completely invalid parameters, unauthorized access, non-existent resource IDs or paths");
+        PROMPT_TYPE_DESCRIPTIONS.put("security", "**Security Testing** (priority: P1): Test with SQL injection attempts, XSS script injection, unauthorized access attempts, privilege escalation");
+    }
+
     private final AiClient aiClient;
     private final ObjectMapper objectMapper;
     private final Config config;
+    private final CustomTestCaseManager customTestCaseManager;
 
     /** 每批发送给AI的最大失败数量（避免请求过大） */
     private static final int MAX_ENDPOINTS_PER_BATCH = 5;
@@ -78,12 +85,14 @@ public class TestCaseGenerator {
         this.config = config;
         this.aiClient = new AiClient(config);
         this.objectMapper = new ObjectMapper();
+        this.customTestCaseManager = new CustomTestCaseManager(config);
     }
 
     /**
      * 为单个接口生成测试用例
      * <p>
      * 调用AI生成全面的测试用例，如果AI调用失败则降级为生成默认用例。
+     * 支持加载自定义用例并与AI生成的用例合并。
      *
      * @param endpoint 接口定义
      * @return 测试用例列表
@@ -92,14 +101,29 @@ public class TestCaseGenerator {
         List<TestCase> testCases = new ArrayList<>();
 
         try {
+            // 1. 加载自定义用例
+            List<TestCase> customCases = loadCustomTestCasesForEndpoint(endpoint);
+            if (!customCases.isEmpty()) {
+                testCases.addAll(customCases);
+                logger.info("Loaded " + customCases.size() + " custom test cases for: " + endpoint.getUrlPath());
+            }
+
+            // 2. 生成AI用例
             String userPrompt = buildPromptForEndpoint(endpoint);
+            String systemPrompt = buildDynamicSystemPrompt();
             logger.info("Generating test cases for: " + endpoint.getHttpMethod() + " " + endpoint.getUrlPath());
 
-            String aiResponse = aiClient.chatCompletion(SYSTEM_PROMPT, userPrompt);
+            String aiResponse = aiClient.chatCompletion(systemPrompt, userPrompt);
             logger.fine("AI response for " + endpoint.getUrlPath() + ": " + aiResponse);
 
             // 解析AI返回的JSON测试用例
-            testCases = parseTestCases(aiResponse, endpoint);
+            List<TestCase> aiTestCases = parseTestCases(aiResponse, endpoint);
+
+            // 3. 合并用例（去重）
+            testCases = mergeTestCases(testCases, aiTestCases);
+
+            // 4. 保存AI生成的用例到自定义用例文件（可选）
+            customTestCaseManager.appendAiGeneratedCases(aiTestCases);
 
             logger.info("Generated " + testCases.size() + " test cases for: " + endpoint.getUrlPath());
 
@@ -112,6 +136,81 @@ public class TestCaseGenerator {
         }
 
         return testCases;
+    }
+
+    /**
+     * 根据Config中的主类型ID动态构建SYSTEM_PROMPT
+     *
+     * @return 动态构建的系统提示词
+     */
+    private String buildDynamicSystemPrompt() {
+        StringBuilder promptBuilder = new StringBuilder();
+        promptBuilder.append(BASE_SYSTEM_PROMPT);
+        promptBuilder.append("\n\n");
+
+        // 解析配置的主类型ID
+        String promptTypes = config.getTestCasePromptTypes();
+        if (promptTypes == null || promptTypes.isEmpty()) {
+            promptTypes = "normal,validation,boundary,error,security";
+        }
+
+        String[] typeIds = promptTypes.split(",");
+        promptBuilder.append("You MUST generate test cases covering these dimensions:\n");
+
+        int index = 1;
+        for (String typeId : typeIds) {
+            typeId = typeId.trim().toLowerCase();
+            String description = PROMPT_TYPE_DESCRIPTIONS.get(typeId);
+            if (description != null) {
+                promptBuilder.append(index).append(". ").append(description).append("\n");
+                index++;
+            }
+        }
+
+        // 添加用例数量要求
+        int caseCount = config.getTestCaseCount();
+        if (caseCount <= 0) {
+            caseCount = 8;
+        }
+        promptBuilder.append("\n");
+        promptBuilder.append("Generate exactly ").append(caseCount).append(" test cases per endpoint, covering all dimensions above.");
+
+        return promptBuilder.toString();
+    }
+
+    /**
+     * 加载指定接口的自定义用例
+     *
+     * @param endpoint 接口定义
+     * @return 自定义用例列表
+     */
+    private List<TestCase> loadCustomTestCasesForEndpoint(EndpointDefinition endpoint) {
+        String endpointPath = endpoint.getUrlPath();
+        return customTestCaseManager.loadCustomTestCases(endpointPath);
+    }
+
+    /**
+     * 合并测试用例，去除重复（基于name和endpointUrl）
+     *
+     * @param existingCases 已有用例
+     * @param newCases 新用例
+     * @return 合并后的用例列表
+     */
+    private List<TestCase> mergeTestCases(List<TestCase> existingCases, List<TestCase> newCases) {
+        List<TestCase> merged = new ArrayList<>(existingCases);
+        List<String> keys = existingCases.stream()
+                .map(tc -> tc.getName() + "|" + tc.getEndpointUrl())
+                .collect(Collectors.toList());
+
+        for (TestCase tc : newCases) {
+            String key = tc.getName() + "|" + tc.getEndpointUrl();
+            if (!keys.contains(key)) {
+                keys.add(key);
+                merged.add(tc);
+            }
+        }
+
+        return merged;
     }
 
     /**
@@ -257,12 +356,41 @@ public class TestCaseGenerator {
 
         // 生成要求
         prompt.append("【生成要求】\n");
-        prompt.append("1. 生成5-10个测试用例，覆盖以下维度:\n");
-        prompt.append("   - 正常流程: 标准参数组合\n");
-        prompt.append("   - 参数校验: 必填字段缺失、格式错误\n");
-        prompt.append("   - 边界值: 极值、空值、超长值\n");
-        prompt.append("   - 异常场景: 无效参数、越权访问\n");
-        prompt.append("   - 安全性: SQL注入、XSS尝试\n\n");
+        int caseCount = config.getTestCaseCount();
+        if (caseCount <= 0) caseCount = 8;
+        prompt.append("1. 生成").append(caseCount).append("个测试用例，覆盖以下维度:\n");
+
+        // 根据配置的主类型ID添加维度
+        String promptTypes = config.getTestCasePromptTypes();
+        if (promptTypes == null || promptTypes.isEmpty()) {
+            promptTypes = "normal,validation,boundary,error,security";
+        }
+
+        // 主类型ID到中文名称和说明的映射
+        Map<String, String> typeCnNames = new LinkedHashMap<>();
+        typeCnNames.put("normal", "正常流程");
+        typeCnNames.put("validation", "参数校验");
+        typeCnNames.put("boundary", "边界值");
+        typeCnNames.put("error", "异常场景");
+        typeCnNames.put("security", "安全性");
+
+        Map<String, String> typeDescriptions = new LinkedHashMap<>();
+        typeDescriptions.put("normal", "标准参数组合、多参数组合、默认值测试");
+        typeDescriptions.put("validation", "必填字段缺失、格式错误、类型不匹配");
+        typeDescriptions.put("boundary", "极值测试、空值测试、超长值测试");
+        typeDescriptions.put("error", "无效参数、越权访问、资源不存在");
+        typeDescriptions.put("security", "SQL注入、XSS尝试、越权访问");
+
+        String[] typeIds = promptTypes.split(",");
+        for (String typeId : typeIds) {
+            typeId = typeId.trim().toLowerCase();
+            String cnName = typeCnNames.get(typeId);
+            String desc = typeDescriptions.get(typeId);
+            if (cnName != null && desc != null) {
+                prompt.append("   - ").append(cnName).append(": ").append(desc).append("\n");
+            }
+        }
+        prompt.append("\n");
 
         prompt.append("2. 请求体字段必须根据【请求体类型】中的字段说明生成，注意:\n");
         prompt.append("   - 枚举类型字段必须使用枚举值，不能随意编造\n");
@@ -929,7 +1057,8 @@ public class TestCaseGenerator {
             final Exception[] errorHolder = new Exception[1];
 
             // 使用流式调用
-            aiClient.chatCompletionStream(SYSTEM_PROMPT, prompt, new AiClient.StreamCallback() {
+            String systemPrompt = buildDynamicSystemPrompt();
+            aiClient.chatCompletionStream(systemPrompt, prompt, new AiClient.StreamCallback() {
                 @Override
                 public void onToken(String token) {
                     fullResponse.append(token);
@@ -967,7 +1096,7 @@ public class TestCaseGenerator {
             String response = fullResponse.toString();
             if (response.isEmpty()) {
                 // 如果流式没有返回，降级为普通调用
-                response = aiClient.chatCompletion(SYSTEM_PROMPT, prompt);
+                response = aiClient.chatCompletion(systemPrompt, prompt);
             }
 
             return parseTestCases(response, endpoint);
