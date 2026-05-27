@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${reportTitle}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; color: #333; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 12px; margin-bottom: 24px; }
+        .header h1 { font-size: 28px; margin-bottom: 8px; }
+        .header .meta { font-size: 14px; opacity: 0.9; }
+        .summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .card { background: white; border-radius: 10px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .card .label { font-size: 13px; color: #888; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .card .value { font-size: 32px; font-weight: 700; }
+        .card .value.pass { color: #52c41a; }
+        .card .value.fail { color: #f5222d; }
+        .card .value.rate { color: #1890ff; }
+        .card .value.time { color: #722ed1; }
+        .section { background: white; border-radius: 10px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .section h2 { font-size: 18px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid #f0f0f0; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
+        th { background: #fafafa; font-weight: 600; color: #666; }
+        tr:hover { background: #f9f9f9; }
+        .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+        .badge.pass { background: #f6ffed; color: #52c41a; border: 1px solid #b7eb8f; }
+        .badge.fail { background: #fff2f0; color: #f5222d; border: 1px solid #ffa39e; }
+        .badge.skip { background: #fffbe6; color: #faad14; border: 1px solid #ffe58f; }
+        .method-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; color: white; }
+        .method-GET { background: #52c41a; }
+        .method-POST { background: #1890ff; }
+        .method-PUT { background: #faad14; }
+        .method-DELETE { background: #f5222d; }
+        .method-PATCH { background: #722ed1; }
+        .error-msg { color: #f5222d; font-size: 13px; margin-top: 4px; }
+        .response-body { background: #f5f5f5; padding: 8px 12px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 12px; max-height: 200px; overflow: auto; white-space: pre-wrap; word-break: break-all; }
+        .fix-suggestion { background: #fffbe6; border: 1px solid #ffe58f; border-radius: 8px; padding: 16px; margin-top: 12px; }
+        .fix-suggestion h4 { color: #d48806; margin-bottom: 8px; }
+        .severity-high { color: #f5222d; font-weight: 700; }
+        .severity-medium { color: #faad14; font-weight: 700; }
+        .severity-low { color: #52c41a; font-weight: 700; }
+        .progress-bar { height: 8px; background: #f0f0f0; border-radius: 4px; overflow: hidden; margin-top: 8px; }
+        .progress-bar .fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+        .progress-bar .fill.pass { background: #52c41a; }
+        .progress-bar .fill.fail { background: #f5222d; }
+        .config-info { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
+        .config-item { padding: 8px 0; }
+        .config-item .key { font-size: 12px; color: #999; }
+        .config-item .val { font-size: 14px; color: #333; font-weight: 500; }
+        /* Bar chart styles */
+        .bar-chart { display: flex; flex-direction: column; gap: 12px; }
+        .bar-row { display: flex; align-items: center; gap: 12px; }
+        .bar-label { width: 100px; font-size: 13px; color: #666; text-align: right; flex-shrink: 0; }
+        .bar-container { flex: 1; background: #f0f0f0; border-radius: 4px; height: 28px; position: relative; overflow: hidden; }
+        .bar-fill { height: 100%; border-radius: 4px; display: flex; align-items: center; padding-left: 8px; color: white; font-size: 12px; font-weight: 600; min-width: 30px; transition: width 0.3s; }
+        .bar-fill.fast { background: #52c41a; }
+        .bar-fill.normal { background: #1890ff; }
+        .bar-fill.slow { background: #faad14; }
+        .bar-fill.veryslow { background: #f5222d; }
+        .bar-value { width: 60px; font-size: 13px; color: #333; font-weight: 600; flex-shrink: 0; }
+        /* Timeline styles */
+        .timeline { display: flex; flex-direction: column; gap: 4px; }
+        .timeline-item { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 13px; }
+        .timeline-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .timeline-dot.pass { background: #52c41a; }
+        .timeline-dot.fail { background: #f5222d; }
+        .timeline-time { color: #999; font-family: monospace; width: 80px; flex-shrink: 0; }
+        .timeline-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .timeline-duration { color: #666; font-family: monospace; width: 80px; text-align: right; flex-shrink: 0; }
+        /* Performance section */
+        .perf-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+        .perf-card { background: #fafafa; border-radius: 8px; padding: 16px; text-align: center; }
+        .perf-card .perf-label { font-size: 12px; color: #999; margin-bottom: 4px; text-transform: uppercase; }
+        .perf-card .perf-value { font-size: 24px; font-weight: 700; color: #333; }
+        .perf-card .perf-unit { font-size: 12px; color: #999; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>${reportTitle}</h1>
+            <div class="meta">
+                Generated at: ${generatedAt} | Base URL: ${baseUrl} | Branch: ${branch}
+            </div>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="summary-cards">
+            <div class="card">
+                <div class="label">Total Tests</div>
+                <div class="value">${totalTests}</div>
+            </div>
+            <div class="card">
+                <div class="label">Passed</div>
+                <div class="value pass">${passedTests}</div>
+                <div class="progress-bar"><div class="fill pass" style="width: ${passRate}%"></div></div>
+            </div>
+            <div class="card">
+                <div class="label">Failed</div>
+                <div class="value fail">${failedTests}</div>
+                <div class="progress-bar"><div class="fill fail" style="width: ${failRate}%"></div></div>
+            </div>
+            <div class="card">
+                <div class="label">Pass Rate</div>
+                <div class="value rate">${passRate}%</div>
+            </div>
+            <div class="card">
+                <div class="label">Avg Response Time</div>
+                <div class="value time">${avgDuration}ms</div>
+            </div>
+        </div>
+
+        <!-- Response Time Distribution -->
+        <div class="section">
+            <h2>Response Time Distribution</h2>
+            <div class="bar-chart">
+#foreach($entry in $durationBuckets.entrySet())
+                <div class="bar-row">
+                    <div class="bar-label">${entry.key}</div>
+                    <div class="bar-container">
+                        <div class="bar-fill#if($entry.key == '<100ms') fast#elseif($entry.key == '100-500ms') normal#elseif($entry.key == '500ms-1s') slow#else veryslow#end" style="width: ${durationBucketPercents.get($entry.key)}%">${entry.value}</div>
+                    </div>
+                    <div class="bar-value">${durationBucketPercents.get($entry.key)}%</div>
+                </div>
+#end
+            </div>
+        </div>
+
+        <!-- HTTP Method Statistics -->
+        <div class="section">
+            <h2>Statistics by HTTP Method</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Method</th>
+                        <th>Total</th>
+                        <th>Passed</th>
+                        <th>Failed</th>
+                        <th>Pass Rate</th>
+                        <th>Avg Duration</th>
+                    </tr>
+                </thead>
+                <tbody>
+#foreach($stat in $methodStats)
+                    <tr>
+                        <td><span class="method-badge method-${stat.method}">${stat.method}</span></td>
+                        <td>${stat.total}</td>
+                        <td style="color: #52c41a;">${stat.passed}</td>
+                        <td style="color: #f5222d;">${stat.failed}</td>
+                        <td>${stat.passRate}%</td>
+                        <td>${stat.avgDuration}ms</td>
+                    </tr>
+#end
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Test Results -->
+        <div class="section">
+            <h2>Test Results</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Status</th>
+                        <th>Test Name</th>
+                        <th>Method</th>
+                        <th>URL</th>
+                        <th>Expected</th>
+                        <th>Actual</th>
+                        <th>Duration</th>
+                    </tr>
+                </thead>
+                <tbody>
+#foreach($result in $testResults)
+                    <tr>
+                        <td><span class="badge ${result.passed ? 'pass' : 'fail'}">${result.passed ? 'PASS' : 'FAIL'}</span></td>
+                        <td>${result.testCaseName}</td>
+                        <td><span class="method-badge method-${result.httpMethod}">${result.httpMethod}</span></td>
+                        <td>${result.url}</td>
+                        <td>${result.expectedStatus}</td>
+                        <td>${result.actualStatus}</td>
+                        <td>${result.formattedDuration}</td>
+                    </tr>
+#end
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Slowest Tests Top 5 -->
+#if($hasSlowestTests)
+        <div class="section">
+            <h2>Slowest Tests (Top 5)</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Test Name</th>
+                        <th>Method</th>
+                        <th>URL</th>
+                        <th>Duration</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+#foreach($result in $slowestTests)
+                    <tr>
+                        <td>${foreach.count}</td>
+                        <td>${result.testCaseName}</td>
+                        <td><span class="method-badge method-${result.httpMethod}">${result.httpMethod}</span></td>
+                        <td>${result.url}</td>
+                        <td style="font-weight: 600; color: #f5222d;">${result.formattedDuration}</td>
+                        <td><span class="badge ${result.passed ? 'pass' : 'fail'}">${result.passed ? 'PASS' : 'FAIL'}</span></td>
+                    </tr>
+#end
+                </tbody>
+            </table>
+        </div>
+#end
+
+        <!-- Test Execution Timeline -->
+        <div class="section">
+            <h2>Execution Timeline</h2>
+            <div class="timeline">
+#foreach($event in $timeline)
+                <div class="timeline-item">
+                    <div class="timeline-dot ${event.passed ? 'pass' : 'fail'}"></div>
+                    <div class="timeline-time">${event.timestamp}</div>
+                    <div class="timeline-name">
+                        <span class="method-badge method-${event.httpMethod}" style="font-size:10px;">${event.httpMethod}</span>
+                        ${event.name}
+                    </div>
+                    <div class="timeline-duration">${event.duration}ms</div>
+                </div>
+#end
+            </div>
+        </div>
+
+        <!-- Failed Tests Detail -->
+#if($failedResults && !$failedResults.isEmpty())
+        <div class="section">
+            <h2>Failed Tests Detail</h2>
+#foreach($result in $failedResults)
+            <div style="margin-bottom: 20px; padding: 16px; border: 1px solid #ffa39e; border-radius: 8px; background: #fff2f0;">
+                <h3 style="margin-bottom: 8px; color: #cf1322;">${result.testCaseName}</h3>
+                <p><strong>Request:</strong> ${result.httpMethod} ${result.url}</p>
+                <p><strong>Expected Status:</strong> ${result.expectedStatus} | <strong>Actual Status:</strong> ${result.actualStatus}</p>
+                <p><strong>Duration:</strong> ${result.formattedDuration}</p>
+#if($result.errorMessage)
+                <p class="error-msg"><strong>Error:</strong> ${result.errorMessage}</p>
+#end
+#if($result.responseBody)
+                <p><strong>Response Body:</strong></p>
+                <div class="response-body">${result.responseBody}</div>
+#end
+            </div>
+#end
+        </div>
+#end
+
+        <!-- Performance Test Results -->
+#if($hasPerformanceResults && $perfSummary)
+        <div class="section">
+            <h2>Performance Test Results</h2>
+            <div class="perf-grid">
+                <div class="perf-card">
+                    <div class="perf-label">Total Samples</div>
+                    <div class="perf-value">${perfSummary.totalSamples}</div>
+                </div>
+                <div class="perf-card">
+                    <div class="perf-label">Success Rate</div>
+                    <div class="perf-value" style="color: #52c41a;">${perfSummary.formattedSuccessRate}%</div>
+                </div>
+                <div class="perf-card">
+                    <div class="perf-label">Error Rate</div>
+                    <div class="perf-value" style="color: #f5222d;">${perfSummary.formattedErrorRate}%</div>
+                </div>
+                <div class="perf-card">
+                    <div class="perf-label">Throughput</div>
+                    <div class="perf-value">${perfSummary.formattedThroughput}</div>
+                    <div class="perf-unit">req/s</div>
+                </div>
+                <div class="perf-card">
+                    <div class="perf-label">Avg Response</div>
+                    <div class="perf-value">${perfSummary.formattedAvgResponseTime}</div>
+                    <div class="perf-unit">ms</div>
+                </div>
+                <div class="perf-card">
+                    <div class="perf-label">Min Response</div>
+                    <div class="perf-value">${perfSummary.minResponseTime}</div>
+                    <div class="perf-unit">ms</div>
+                </div>
+                <div class="perf-card">
+                    <div class="perf-label">Max Response</div>
+                    <div class="perf-value">${perfSummary.maxResponseTime}</div>
+                    <div class="perf-unit">ms</div>
+                </div>
+                <div class="perf-card">
+                    <div class="perf-label">P50</div>
+                    <div class="perf-value">${perfSummary.p50ResponseTime}</div>
+                    <div class="perf-unit">ms</div>
+                </div>
+                <div class="perf-card">
+                    <div class="perf-label">P90</div>
+                    <div class="perf-value">${perfSummary.p90ResponseTime}</div>
+                    <div class="perf-unit">ms</div>
+                </div>
+                <div class="perf-card">
+                    <div class="perf-label">P95</div>
+                    <div class="perf-value">${perfSummary.p95ResponseTime}</div>
+                    <div class="perf-unit">ms</div>
+                </div>
+                <div class="perf-card">
+                    <div class="perf-label">P99</div>
+                    <div class="perf-value">${perfSummary.p99ResponseTime}</div>
+                    <div class="perf-unit">ms</div>
+                </div>
+                <div class="perf-card">
+                    <div class="perf-label">Total Bytes</div>
+                    <div class="perf-value">${perfSummary.totalBytes}</div>
+                    <div class="perf-unit">bytes</div>
+                </div>
+            </div>
+        </div>
+#end
+
+        <!-- Fix Suggestions -->
+#if($hasFixSuggestions && $fixSuggestions && !$fixSuggestions.isEmpty())
+        <div class="section">
+            <h2>Fix Suggestions</h2>
+#foreach($suggestion in $fixSuggestions)
+            <div class="fix-suggestion">
+                <h4>${suggestion.testName}</h4>
+                <p><strong>Root Cause:</strong> ${suggestion.rootCause}</p>
+                <p><strong>Severity:</strong> <span class="${suggestion.severityClass}">${suggestion.severity}</span></p>
+                <p><strong>Suggestion:</strong> ${suggestion.fixSuggestion}</p>
+#if($suggestion.affectedFiles && !$suggestion.affectedFiles.isEmpty())
+                <p><strong>Affected Files:</strong> ${suggestion.affectedFiles}</p>
+#end
+            </div>
+#end
+        </div>
+#end
+
+        <!-- Configuration Info -->
+        <div class="section">
+            <h2>Configuration</h2>
+            <div class="config-info">
+#foreach($entry in $configInfo.entrySet())
+                <div class="config-item">
+                    <div class="key">${entry.key}</div>
+                    <div class="val">${entry.value}</div>
+                </div>
+#end
+            </div>
+        </div>
+    </div>
+</body>
+</html>
