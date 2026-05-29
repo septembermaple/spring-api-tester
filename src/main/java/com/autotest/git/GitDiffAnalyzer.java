@@ -207,6 +207,7 @@ public class GitDiffAnalyzer {
      */
     private ObjectId resolveBaseCommit(Git git, Repository repository) throws IOException {
         String since = config.getSince();
+        String branch = config.getBranch();
 
         if (since != null && !since.isEmpty()) {
             // 尝试解析为日期格式 (yyyy-MM-dd)
@@ -225,20 +226,19 @@ public class GitDiffAnalyzer {
             }
         }
 
-        // 回退到分支名
-        String branch = config.getBranch();
+        // 优先使用用户选择的目标分支的 HEAD~1
         if (branch != null && !branch.isEmpty()) {
             try {
-                ObjectId resolved = repository.resolve(branch);
+                ObjectId resolved = repository.resolve(branch + "~1");
                 if (resolved != null) {
                     return resolved;
                 }
             } catch (IOException e) {
-                System.err.println("Warning: Could not resolve branch: " + branch);
+                System.err.println("Warning: Could not resolve branch~1: " + branch);
             }
         }
 
-        // 最后回退到 HEAD~1 (与上一次commit比较)
+        // 最后回退到 HEAD~1
         try {
             return repository.resolve("HEAD~1");
         } catch (IOException e) {
@@ -257,22 +257,24 @@ public class GitDiffAnalyzer {
         try {
             Date sinceDate = DATE_FORMAT.parse(dateStr);
 
+            // 优先使用目标分支，而不是HEAD
+            String branch = config.getBranch();
+            String ref = (branch != null && !branch.isEmpty()) ? branch : "HEAD";
+
             Iterable<RevCommit> log = git.log()
-                    .add(repository.resolve("HEAD"))
+                    .add(repository.resolve(ref))
                     .call();
 
             ObjectId baseCommit = null;
             for (RevCommit commit : log) {
                 Date commitDate = new Date(commit.getCommitTime() * 1000L);
                 if (commitDate.before(sinceDate)) {
-                    // 找到指定日期之前的最后一个commit作为基准
                     baseCommit = commit.getId();
                     break;
                 }
             }
 
             if (baseCommit == null) {
-                // 如果所有commit都在指定日期之后，使用最早的commit的父commit
                 RevCommit firstCommit = null;
                 for (RevCommit commit : log) {
                     firstCommit = commit;
@@ -293,6 +295,15 @@ public class GitDiffAnalyzer {
      * 解析最新commit (HEAD)
      */
     private ObjectId resolveNewCommit(Repository repository) throws IOException {
+        // 优先使用用户选择的目标分支
+        String branch = config.getBranch();
+        if (branch != null && !branch.isEmpty()) {
+            ObjectId resolved = repository.resolve(branch);
+            if (resolved != null) {
+                return resolved;
+            }
+        }
+        // 回退到 HEAD
         return repository.resolve("HEAD");
     }
 
