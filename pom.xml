@@ -104,6 +104,7 @@
                 <version>3.5.1</version>
                 <executions>
                     <execution>
+                        <id>create-all-jar</id>
                         <phase>package</phase>
                         <goals>
                             <goal>shade</goal>
@@ -147,6 +148,60 @@
                     <mainClass>com.autotest.gui.MainFrame</mainClass>
                 </configuration>
             </plugin>
+
+            <!-- Launch4j Maven Plugin - 打包为Windows EXE (暂时禁用，使用jpackage)
+            <plugin>
+                <groupId>com.akathist.maven.plugins.launch4j</groupId>
+                <artifactId>launch4j-maven-plugin</artifactId>
+                <version>2.5.1</version>
+                <executions>
+                    <execution>
+                        <id>l4j-gui</id>
+                        <phase>none</phase>
+                        <goals>
+                            <goal>launch4j</goal>
+                        </goals>
+                        <configuration>
+                            <headerType>gui</headerType>
+                            <outfile>target/SpringAPITester.exe</outfile>
+                            <jar>target/${project.artifactId}-${project.version}-all.jar</jar>
+                            <errTitle>Spring API Tester</errTitle>
+                            <classPath>
+                                <mainClass>com.autotest.gui.MainFrame</mainClass>
+                            </classPath>
+                            <jre>
+                                <minVersion>21</minVersion>
+                                <path>%JAVA_HOME%</path>
+                                <opts>
+                                    <opt>-Xms256m</opt>
+                                    <opt>-Xmx1024m</opt>
+                                </opts>
+                            </jre>
+                            <versionInfo>
+                                <fileVersion>1.0.0.0</fileVersion>
+                                <txtFileVersion>1.0.0</txtFileVersion>
+                                <fileDescription>Spring API Tester - AI驱动的API测试工具</fileDescription>
+                                <copyright>Copyright (C) 2026</copyright>
+                                <productVersion>1.0.0.0</productVersion>
+                                <txtProductVersion>1.0.0</txtProductVersion>
+                                <productName>Spring API Tester</productName>
+                                <internalName>spring-api-tester</internalName>
+                                <originalFilename>SpringAPITester.exe</originalFilename>
+                            </versionInfo>
+                            <icon>src/main/resources/app-icon.ico</icon>
+                            <singleInstance>
+                                <mutexName>com.autotest.springapitester</mutexName>
+                                <windowTitle>Spring API Tester</windowTitle>
+                            </singleInstance>
+                            <messages>
+                                <startupErr>启动失败: 无法找到Java运行环境</startupErr>
+                                <jreVersionErr>需要Java 21或更高版本</jreVersionErr>
+                            </messages>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            -->
         </plugins>
     </build>
 </project>
