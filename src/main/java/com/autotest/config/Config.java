@@ -53,6 +53,10 @@ public class Config {
     private String customTestCaseFile = "custom_test_cases.json";  // 自定义用例文件路径
     private String testCaseConfigFile = "testcase_config.properties";  // 测试用例配置文件路径
 
+    // 许可证服务器配置
+    private String licenseServerUrl = "http://localhost:8088";
+    private String softwareId = "spring-api-tester";
+
     public Config() {
     }
 
@@ -296,6 +300,13 @@ public class Config {
 
     public String getTestCaseConfigFile() { return testCaseConfigFile; }
     public void setTestCaseConfigFile(String testCaseConfigFile) { this.testCaseConfigFile = testCaseConfigFile; }
+
+    // 许可证服务器配置 Getter/Setter
+    public String getLicenseServerUrl() { return licenseServerUrl; }
+    public void setLicenseServerUrl(String licenseServerUrl) { this.licenseServerUrl = licenseServerUrl; }
+
+    public String getSoftwareId() { return softwareId; }
+    public void setSoftwareId(String softwareId) { this.softwareId = softwareId; }
 
     @Override
     public String toString() {

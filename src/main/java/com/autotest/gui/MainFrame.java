@@ -10,6 +10,8 @@ import com.autotest.executor.TestExecutor;
 import com.autotest.executor.TestResult;
 import com.autotest.git.ChangedEndpoint;
 import com.autotest.git.GitDiffAnalyzer;
+import com.autotest.license.LicenseDialog;
+import com.autotest.license.LicenseManager;
 import com.autotest.parser.ApiMetadataExtractor;
 import com.autotest.parser.EndpointDefinition;
 import com.autotest.report.DetailedReportGenerator;
@@ -114,12 +116,32 @@ public class MainFrame extends JFrame {
     private static final String PREFIX_INFO = "[INFO] ";
     private static final String PREFIX_PROGRESS = "[PROGRESS] ";
     
+    // 许可证管理器
+    private LicenseManager licenseManager;
+
     public MainFrame() {
+        // 检查激活状态
+        licenseManager = new LicenseManager();
+        if (!licenseManager.isActivated() && !licenseManager.isTrialValid()) {
+            // 显示激活对话框
+            LicenseDialog dialog = new LicenseDialog(this, licenseManager);
+            dialog.setVisible(true);
+            if (!licenseManager.isActivated() && !licenseManager.isTrialValid()) {
+                // 用户未激活且试用期已过，退出程序
+                System.exit(0);
+            }
+        }
+
         initComponents();
         setupLayout();
         setupListeners();
         loadConfig();
         appendLog(PREFIX_INFO + "Spring API Tester 启动成功");
+        if (licenseManager.isActivated()) {
+            appendLog(PREFIX_SUCCESS + "软件已激活");
+        } else {
+            appendLog(PREFIX_WARNING + "试用期: " + licenseManager.getTrialStatusText());
+        }
         appendLog(PREFIX_INFO + "请配置测试参数后点击开始按钮");
     }
     
@@ -655,10 +677,45 @@ public class MainFrame extends JFrame {
         JPanel statusPanel = new JPanel(new BorderLayout(10, 5));
         statusPanel.setBackground(new Color(245, 245, 245));
         statusPanel.setBorder(new EmptyBorder(8, 15, 8, 15));
-        
+
         statusPanel.add(progressBar, BorderLayout.CENTER);
-        statusPanel.add(lblStatus, BorderLayout.EAST);
-        
+
+        // 右侧信息面板：状态标签 + 作者信息 + 激活状态
+        JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 15, 0));
+        rightPanel.setBackground(new Color(245, 245, 245));
+
+        // 激活状态标签
+        JLabel lblLicenseStatus = new JLabel();
+        lblLicenseStatus.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 11));
+        if (licenseManager != null && licenseManager.isActivated()) {
+            lblLicenseStatus.setText("已激活");
+            lblLicenseStatus.setForeground(SUCCESS_COLOR);
+        } else if (licenseManager != null) {
+            lblLicenseStatus.setText(licenseManager.getTrialStatusText());
+            lblLicenseStatus.setForeground(WARNING_COLOR);
+        }
+        rightPanel.add(lblLicenseStatus);
+
+        // 分隔符
+        JSeparator sep = new JSeparator(SwingConstants.VERTICAL);
+        sep.setPreferredSize(new Dimension(1, 14));
+        rightPanel.add(sep);
+
+        // 作者信息
+        JLabel lblAuthor = new JLabel("cc  |  781100522@qq.com");
+        lblAuthor.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 11));
+        lblAuthor.setForeground(Color.GRAY);
+        rightPanel.add(lblAuthor);
+
+        // 分隔符
+        JSeparator sep2 = new JSeparator(SwingConstants.VERTICAL);
+        sep2.setPreferredSize(new Dimension(1, 14));
+        rightPanel.add(sep2);
+
+        rightPanel.add(lblStatus);
+
+        statusPanel.add(rightPanel, BorderLayout.EAST);
+
         return statusPanel;
     }
     
