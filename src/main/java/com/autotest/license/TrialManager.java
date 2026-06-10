@@ -57,7 +57,7 @@ public class TrialManager {
                 byte[] encryptedData = new byte[(int) Files.size(trialFile)];
                 fis.read(encryptedData);
                 String encrypted = new String(encryptedData, StandardCharsets.UTF_8);
-                String decrypted = EncryptionUtil.decrypt(encrypted, softwareId);
+                String decrypted = EncryptionUtil.decrypt(encrypted);
                 firstStartTime = Long.parseLong(decrypted.trim());
                 loaded = true;
             } catch (Exception e) {
@@ -76,7 +76,7 @@ public class TrialManager {
         Path trialFile = getTrialFilePath();
         try {
             String data = String.valueOf(firstStartTime);
-            String encrypted = EncryptionUtil.encrypt(data, softwareId);
+            String encrypted = EncryptionUtil.encrypt(data);
             try (FileOutputStream fos = new FileOutputStream(trialFile.toFile())) {
                 fos.write(encrypted.getBytes(StandardCharsets.UTF_8));
             }

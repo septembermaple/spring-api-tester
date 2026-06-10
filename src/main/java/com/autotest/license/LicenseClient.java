@@ -48,21 +48,32 @@ public class LicenseClient {
             requestBody.put("machineCode", machineCode);
             requestBody.put("licenseKey", licenseKey);
             requestBody.put("softwareId", softwareId);
+            requestBody.put("timestamp", System.currentTimeMillis());
+            requestBody.put("nonce", generateNonce());
 
             String jsonBody = objectMapper.writeValueAsString(requestBody);
 
             // 加密请求体
-            String encryptedBody = EncryptionUtil.encrypt(jsonBody, softwareId);
+            String encryptedBody = EncryptionUtil.encrypt(jsonBody);
+
+            // 构建请求JSON: {"data": "加密后的数据"}
+            ObjectNode requestWrapper = objectMapper.createObjectNode();
+            requestWrapper.put("data", encryptedBody);
+            String requestJson = objectMapper.writeValueAsString(requestWrapper);
 
             // 发送请求
-            String response = sendPostRequest("/api/license/verify", encryptedBody);
+            String response = sendPostRequest("/api/license/verify", requestJson);
 
             if (response == null || response.isEmpty()) {
                 return LicenseResponse.error("服务器无响应");
             }
 
+            // 解析响应JSON，提取加密的数据
+            JsonNode responseNode = objectMapper.readTree(response);
+            String encryptedResponse = responseNode.has("data") ? responseNode.get("data").asText() : response;
+
             // 解密响应
-            String decryptedResponse = EncryptionUtil.decrypt(response, softwareId);
+            String decryptedResponse = EncryptionUtil.decrypt(encryptedResponse);
 
             // 解析响应
             JsonNode jsonNode = objectMapper.readTree(decryptedResponse);
@@ -91,17 +102,28 @@ public class LicenseClient {
             ObjectNode requestBody = objectMapper.createObjectNode();
             requestBody.put("licenseKey", licenseKey);
             requestBody.put("softwareId", softwareId);
+            requestBody.put("timestamp", System.currentTimeMillis());
+            requestBody.put("nonce", generateNonce());
 
             String jsonBody = objectMapper.writeValueAsString(requestBody);
-            String encryptedBody = EncryptionUtil.encrypt(jsonBody, softwareId);
+            String encryptedBody = EncryptionUtil.encrypt(jsonBody);
 
-            String response = sendPostRequest("/api/license/check", encryptedBody);
+            // 构建请求JSON: {"data": "加密后的数据"}
+            ObjectNode requestWrapper = objectMapper.createObjectNode();
+            requestWrapper.put("data", encryptedBody);
+            String requestJson = objectMapper.writeValueAsString(requestWrapper);
+
+            String response = sendPostRequest("/api/license/check", requestJson);
 
             if (response == null || response.isEmpty()) {
                 return LicenseResponse.error("服务器无响应");
             }
 
-            String decryptedResponse = EncryptionUtil.decrypt(response, softwareId);
+            // 解析响应JSON，提取加密的数据
+            JsonNode responseNode = objectMapper.readTree(response);
+            String encryptedResponse = responseNode.has("data") ? responseNode.get("data").asText() : response;
+
+            String decryptedResponse = EncryptionUtil.decrypt(encryptedResponse);
             JsonNode jsonNode = objectMapper.readTree(decryptedResponse);
             boolean success = jsonNode.has("success") && jsonNode.get("success").asBoolean();
             String message = jsonNode.has("message") ? jsonNode.get("message").asText() : "";
@@ -130,8 +152,7 @@ public class LicenseClient {
             URL url = new URL(serverUrl + endpoint);
             connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("POST");
-            connection.setRequestProperty("Content-Type", "application/octet-stream");
-            connection.setRequestProperty("X-Software-Id", softwareId);
+            connection.setRequestProperty("Content-Type", "application/json");
             connection.setConnectTimeout(CONNECT_TIMEOUT);
             connection.setReadTimeout(READ_TIMEOUT);
             connection.setDoOutput(true);
@@ -182,6 +203,17 @@ public class LicenseClient {
                 connection.disconnect();
             }
         }
+    }
+
+    /**
+     * 生成随机nonce
+     *
+     * @return 随机nonce字符串
+     */
+    private String generateNonce() {
+        byte[] nonceBytes = new byte[16];
+        new java.security.SecureRandom().nextBytes(nonceBytes);
+        return java.util.Base64.getEncoder().encodeToString(nonceBytes);
     }
 
     /**

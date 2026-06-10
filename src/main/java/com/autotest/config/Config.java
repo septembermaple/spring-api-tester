@@ -133,6 +133,12 @@ public class Config {
         if (author == null || author.isEmpty()) {
             author = props.getProperty("git.author", "");
         }
+        if (licenseServerUrl == null || licenseServerUrl.isEmpty()) {
+            licenseServerUrl = props.getProperty("license.server.url", "http://localhost:8088");
+        }
+        if (softwareId == null || softwareId.isEmpty()) {
+            softwareId = props.getProperty("license.software.id", "spring-api-tester");
+        }
     }
 
     /**

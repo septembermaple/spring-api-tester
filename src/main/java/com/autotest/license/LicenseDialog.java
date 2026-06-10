@@ -51,7 +51,7 @@ public class LicenseDialog extends JDialog {
         setupListeners();
         updateUIState();
 
-        setSize(500, 420);
+        setSize(550, 480);
         setLocationRelativeTo(parent);
         setResizable(false);
         setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
@@ -110,32 +110,34 @@ public class LicenseDialog extends JDialog {
 
         // 状态标签
         lblStatus = new JLabel("请输入激活码或选择试用");
-        lblStatus.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
+        lblStatus.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 13));
         lblStatus.setForeground(INFO_COLOR);
         lblStatus.setHorizontalAlignment(SwingConstants.CENTER);
 
         // 试用信息标签
         lblTrialInfo = new JLabel(licenseManager.getTrialStatusText());
-        lblTrialInfo.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
-        lblTrialInfo.setForeground(INFO_COLOR);
+        lblTrialInfo.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
+        lblTrialInfo.setForeground(PRIMARY_COLOR);
         lblTrialInfo.setHorizontalAlignment(SwingConstants.CENTER);
 
         // 作者信息标签
-        lblAuthorInfo = new JLabel("作者: cc  |  邮箱: 781100522@qq.com");
-        lblAuthorInfo.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 11));
-        lblAuthorInfo.setForeground(Color.GRAY);
+        lblAuthorInfo = new JLabel("<html><center>作者: cc<br>邮箱: 781100522@qq.com</center></html>");
+        lblAuthorInfo.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
+        lblAuthorInfo.setForeground(Color.DARK_GRAY);
         lblAuthorInfo.setHorizontalAlignment(SwingConstants.CENTER);
     }
 
     private JButton createStyledButton(String text, Color bgColor) {
         JButton button = new JButton(text);
-        button.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 13));
+        button.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
         button.setForeground(Color.WHITE);
         button.setBackground(bgColor);
         button.setFocusPainted(false);
         button.setBorderPainted(false);
         button.setOpaque(true);
         button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        // 增加按钮内边距，使文字更清晰
+        button.setMargin(new Insets(8, 20, 8, 20));
 
         final Color originalColor = bgColor;
         button.addMouseListener(new MouseAdapter() {

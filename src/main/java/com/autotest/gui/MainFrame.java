@@ -120,10 +120,18 @@ public class MainFrame extends JFrame {
     private LicenseManager licenseManager;
 
     public MainFrame() {
-        // 检查激活状态
-        licenseManager = new LicenseManager();
-        if (!licenseManager.isActivated() && !licenseManager.isTrialValid()) {
-            // 显示激活对话框
+        // 先初始化UI
+        initComponents();
+        setupLayout();
+        setupListeners();
+        loadConfig();
+
+        // 使用配置中的服务器地址创建许可证管理器
+        Config licenseConfig = new Config();
+        licenseManager = new LicenseManager(licenseConfig.getLicenseServerUrl(), licenseConfig.getSoftwareId());
+
+        // 始终显示激活对话框（让用户可以输入激活码或选择试用）
+        if (!licenseManager.isActivated()) {
             LicenseDialog dialog = new LicenseDialog(this, licenseManager);
             dialog.setVisible(true);
             if (!licenseManager.isActivated() && !licenseManager.isTrialValid()) {
@@ -132,10 +140,6 @@ public class MainFrame extends JFrame {
             }
         }
 
-        initComponents();
-        setupLayout();
-        setupListeners();
-        loadConfig();
         appendLog(PREFIX_INFO + "Spring API Tester 启动成功");
         if (licenseManager.isActivated()) {
             appendLog(PREFIX_SUCCESS + "软件已激活");

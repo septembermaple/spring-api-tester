@@ -26,23 +26,27 @@ public class EncryptionUtil {
     private static final int GCM_TAG_LENGTH = 128; // GCM认证标签长度
     private static final int AES_KEY_SIZE = 256; // AES密钥长度
 
-    // 使用软件ID和固定盐值派生密钥，确保与服务器端兼容
-    private static final String KEY_DERIVATION_SALT = "SpringApiTester_License_Salt_v1.0";
+    // 固定盐值 - 必须与服务器端一致
+    private static final String KEY_DERIVATION_SALT = "LicenseServer_AES256_Salt_v1";
+
+    // 缓存派生的密钥
+    private static byte[] cachedKey = null;
 
     /**
-     * 从软件ID派生加密密钥
+     * 从固定盐值派生加密密钥
      *
-     * @param softwareId 软件ID
      * @return 派生的密钥字节数组
      */
-    public static byte[] deriveKey(String softwareId) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            String input = softwareId + "_" + KEY_DERIVATION_SALT;
-            return digest.digest(input.getBytes(StandardCharsets.UTF_8));
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("SHA-256 algorithm not available", e);
+    private static byte[] deriveKey() {
+        if (cachedKey == null) {
+            try {
+                MessageDigest digest = MessageDigest.getInstance("SHA-256");
+                cachedKey = digest.digest(KEY_DERIVATION_SALT.getBytes(StandardCharsets.UTF_8));
+            } catch (NoSuchAlgorithmException e) {
+                throw new RuntimeException("SHA-256 algorithm not available", e);
+            }
         }
+        return cachedKey;
     }
 
     /**
@@ -59,13 +63,12 @@ public class EncryptionUtil {
     /**
      * 加密数据
      *
-     * @param plaintext  明文
-     * @param softwareId 软件ID，用于派生密钥
+     * @param plaintext 明文
      * @return Base64编码的密文（包含nonce + ciphertext + auth tag）
      */
-    public static String encrypt(String plaintext, String softwareId) {
+    public static String encrypt(String plaintext) {
         try {
-            byte[] keyBytes = deriveKey(softwareId);
+            byte[] keyBytes = deriveKey();
             SecretKeySpec keySpec = new SecretKeySpec(keyBytes, ALGORITHM);
 
             byte[] nonce = generateNonce();
@@ -91,12 +94,11 @@ public class EncryptionUtil {
      * 解密数据
      *
      * @param ciphertext Base64编码的密文（包含nonce + ciphertext + auth tag）
-     * @param softwareId 软件ID，用于派生密钥
      * @return 明文
      */
-    public static String decrypt(String ciphertext, String softwareId) {
+    public static String decrypt(String ciphertext) {
         try {
-            byte[] keyBytes = deriveKey(softwareId);
+            byte[] keyBytes = deriveKey();
             SecretKeySpec keySpec = new SecretKeySpec(keyBytes, ALGORITHM);
 
             byte[] decoded = Base64.getDecoder().decode(ciphertext);
