@@ -55,7 +55,7 @@ public class Config {
 
     // 许可证服务器配置
     private String licenseServerUrl = "http://localhost:8088";
-    private String softwareId = "spring-api-tester";
+    private String softwareId = "";
 
     public Config() {
     }

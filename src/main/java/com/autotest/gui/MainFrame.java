@@ -127,7 +127,7 @@ public class MainFrame extends JFrame {
         loadConfig();
 
         // 使用配置中的服务器地址创建许可证管理器
-        Config licenseConfig = new Config();
+        Config licenseConfig = Config.createDefault();
         licenseManager = new LicenseManager(licenseConfig.getLicenseServerUrl(), licenseConfig.getSoftwareId());
 
         // 始终显示激活对话框（让用户可以输入激活码或选择试用）

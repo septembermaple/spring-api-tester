@@ -118,19 +118,16 @@ public class LicenseManager {
             return LicenseVerificationResult.error("激活码不能为空");
         }
 
-        // 先检查激活码格式
         licenseKey = licenseKey.trim();
 
-        // 调用服务器验证
-        LicenseClient.LicenseResponse response = licenseClient.verifyLicense(machineCode, licenseKey);
+        // 先尝试激活（绑定设备），如果已绑定则激活接口会返回成功
+        LicenseClient.LicenseResponse response = licenseClient.activateLicense(machineCode, licenseKey);
 
         if (response.isSuccess()) {
-            // 验证成功，设置内存激活状态
             activated = true;
             currentLicenseKey = licenseKey;
             return LicenseVerificationResult.success(response.getMessage());
         } else {
-            // 验证失败
             activated = false;
             currentLicenseKey = null;
             return LicenseVerificationResult.error(response.getMessage());

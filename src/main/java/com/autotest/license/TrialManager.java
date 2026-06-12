@@ -39,11 +39,21 @@ public class TrialManager {
 
     /**
      * 获取试用信息文件路径
-     *
-     * @return 试用信息文件路径
+     * 优先保存到用户AppData目录，避免C盘根目录权限问题
      */
     private Path getTrialFilePath() {
         String userHome = System.getProperty("user.home");
+        // 尝试AppData目录
+        String appData = System.getenv("APPDATA");
+        if (appData != null && !appData.isEmpty()) {
+            Path dir = Paths.get(appData, "SpringAPITester");
+            try {
+                Files.createDirectories(dir);
+                return dir.resolve(TRIAL_FILE_NAME);
+            } catch (Exception e) {
+                // 忽略，回退到user.home
+            }
+        }
         return Paths.get(userHome, TRIAL_FILE_NAME);
     }
 

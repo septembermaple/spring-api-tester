@@ -65,7 +65,7 @@ public class LicenseDialog extends JDialog {
         setupListeners();
         updateUIState();
 
-        setSize(500, 420);
+        setSize(580, 550);
         setLocationRelativeTo(parent);
         setResizable(false);
         setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
