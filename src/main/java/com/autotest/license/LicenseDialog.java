@@ -6,19 +6,16 @@ import java.awt.*;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.*;
-import java.net.URI;
+import java.awt.geom.RoundRectangle2D;
 
 /**
- * 激活对话框（GUI）
+ * 激活对话框（GUI）- 现代化设计
  * <p>
  * UI设计：
- * - 标题："软件激活"
+ * - 圆角卡片式布局
+ * - 渐变色标题栏
+ * - 清晰的视觉层次
  * - 作者信息：cc  邮箱：781100522@qq.com
- * - 机器码显示（只读）
- * - 激活码输入框
- * - 激活按钮
- * - 试用按钮（显示剩余天数）
- * - 用户协议复选框
  */
 public class LicenseDialog extends JDialog {
 
@@ -34,14 +31,19 @@ public class LicenseDialog extends JDialog {
     private JCheckBox chkAgreement;
     private JLabel lblStatus;
     private JLabel lblTrialInfo;
-    private JLabel lblAuthorInfo;
 
-    // 颜色定义
-    private static final Color PRIMARY_COLOR = new Color(41, 128, 185);
-    private static final Color SUCCESS_COLOR = new Color(39, 174, 96);
-    private static final Color ERROR_COLOR = new Color(231, 76, 60);
-    private static final Color INFO_COLOR = new Color(52, 73, 94);
-    private static final Color BG_COLOR = new Color(250, 250, 250);
+    // 颜色定义 - 现代化配色
+    private static final Color PRIMARY_COLOR = new Color(59, 130, 246);      // 蓝色
+    private static final Color PRIMARY_HOVER = new Color(37, 99, 235);       // 深蓝
+    private static final Color SUCCESS_COLOR = new Color(34, 197, 94);       // 绿色
+    private static final Color ERROR_COLOR = new Color(239, 68, 68);         // 红色
+    private static final Color WARNING_COLOR = new Color(245, 158, 11);      // 橙色
+    private static final Color INFO_COLOR = new Color(107, 114, 128);        // 灰色
+    private static final Color BG_COLOR = new Color(248, 250, 252);          // 浅灰背景
+    private static final Color CARD_COLOR = Color.WHITE;                      // 卡片白色
+    private static final Color BORDER_COLOR = new Color(226, 232, 240);      // 边框色
+    private static final Color TEXT_PRIMARY = new Color(15, 23, 42);         // 主文字
+    private static final Color TEXT_SECONDARY = new Color(100, 116, 139);    // 次要文字
 
     public LicenseDialog(JFrame parent) {
         super(parent, "软件激活", true);
@@ -51,7 +53,7 @@ public class LicenseDialog extends JDialog {
         setupListeners();
         updateUIState();
 
-        setSize(550, 480);
+        setSize(520, 600);
         setLocationRelativeTo(parent);
         setResizable(false);
         setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
@@ -65,7 +67,7 @@ public class LicenseDialog extends JDialog {
         setupListeners();
         updateUIState();
 
-        setSize(580, 550);
+        setSize(520, 600);
         setLocationRelativeTo(parent);
         setResizable(false);
         setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
@@ -75,86 +77,133 @@ public class LicenseDialog extends JDialog {
         // 机器码显示（只读）
         txtMachineCode = new JTextField(licenseManager.getMachineCode());
         txtMachineCode.setEditable(false);
-        txtMachineCode.setFont(new Font(Font.MONOSPACED, Font.BOLD, 13));
-        txtMachineCode.setBackground(new Color(240, 240, 240));
-        txtMachineCode.setForeground(INFO_COLOR);
+        txtMachineCode.setFont(new Font("Consolas", Font.BOLD, 14));
+        txtMachineCode.setBackground(new Color(241, 245, 249));
+        txtMachineCode.setForeground(TEXT_PRIMARY);
         txtMachineCode.setHorizontalAlignment(JTextField.CENTER);
         txtMachineCode.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(200, 200, 200)),
-                BorderFactory.createEmptyBorder(5, 10, 5, 10)
+                BorderFactory.createLineBorder(BORDER_COLOR, 1),
+                BorderFactory.createEmptyBorder(10, 12, 10, 12)
         ));
+        txtMachineCode.setCaretColor(txtMachineCode.getBackground());
 
         // 激活码输入框
         txtLicenseKey = new JTextField(25);
-        txtLicenseKey.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 14));
+        txtLicenseKey.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 15));
+        txtLicenseKey.setForeground(TEXT_PRIMARY);
         txtLicenseKey.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(200, 200, 200)),
-                BorderFactory.createEmptyBorder(8, 10, 8, 10)
+                BorderFactory.createLineBorder(BORDER_COLOR, 1),
+                BorderFactory.createEmptyBorder(12, 14, 12, 14)
         ));
+        txtLicenseKey.setToolTipText("请输入激活码，格式：XXXX-XXXX-XXXX-XXXX-XXXX");
 
-        // 激活按钮
-        btnActivate = createStyledButton("激活", PRIMARY_COLOR);
-        btnActivate.setPreferredSize(new Dimension(120, 40));
-        btnActivate.setEnabled(false); // 默认禁用，需要勾选协议
+        // 激活按钮 - 圆角设计
+        btnActivate = createPrimaryButton("立即激活", PRIMARY_COLOR);
+        btnActivate.setEnabled(false);
 
         // 试用按钮
         int remainingDays = licenseManager.getTrialRemainingDays();
-        String trialText = remainingDays > 0 ? "试用 (" + remainingDays + "天)" : "试用已过期";
-        btnTrial = createStyledButton(trialText, new Color(149, 165, 166));
-        btnTrial.setPreferredSize(new Dimension(120, 40));
+        String trialText = remainingDays > 0 ? "免费试用 " + remainingDays + " 天" : "试用已过期";
+        btnTrial = createSecondaryButton(trialText);
 
         // 用户协议复选框
         chkAgreement = new JCheckBox("我已阅读并同意用户协议");
-        chkAgreement.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
-        chkAgreement.setBackground(BG_COLOR);
+        chkAgreement.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 13));
+        chkAgreement.setBackground(CARD_COLOR);
+        chkAgreement.setForeground(TEXT_SECONDARY);
 
         // 状态标签
         lblStatus = new JLabel("请输入激活码或选择试用");
-        lblStatus.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 13));
+        lblStatus.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 13));
         lblStatus.setForeground(INFO_COLOR);
         lblStatus.setHorizontalAlignment(SwingConstants.CENTER);
 
         // 试用信息标签
         lblTrialInfo = new JLabel(licenseManager.getTrialStatusText());
-        lblTrialInfo.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
-        lblTrialInfo.setForeground(PRIMARY_COLOR);
+        lblTrialInfo.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 13));
+        lblTrialInfo.setForeground(WARNING_COLOR);
         lblTrialInfo.setHorizontalAlignment(SwingConstants.CENTER);
-
-        // 作者信息标签
-        lblAuthorInfo = new JLabel("<html><center>作者: cc<br>邮箱: 781100522@qq.com</center></html>");
-        lblAuthorInfo.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
-        lblAuthorInfo.setForeground(Color.DARK_GRAY);
-        lblAuthorInfo.setHorizontalAlignment(SwingConstants.CENTER);
     }
 
-    private JButton createStyledButton(String text, Color bgColor) {
-        JButton button = new JButton(text);
+    /**
+     * 创建主按钮（蓝色填充）
+     */
+    private JButton createPrimaryButton(String text, Color bgColor) {
+        JButton button = new JButton(text) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                // 绘制圆角背景
+                if (getModel().isEnabled()) {
+                    if (getModel().isPressed()) {
+                        g2.setColor(bgColor.darker());
+                    } else if (getModel().isRollover()) {
+                        g2.setColor(PRIMARY_HOVER);
+                    } else {
+                        g2.setColor(bgColor);
+                    }
+                } else {
+                    g2.setColor(new Color(203, 213, 225));
+                }
+
+                g2.fill(new RoundRectangle2D.Float(0, 0, getWidth(), getHeight(), 8, 8));
+                g2.dispose();
+
+                super.paintComponent(g);
+            }
+        };
+
         button.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
         button.setForeground(Color.WHITE);
-        button.setBackground(bgColor);
         button.setFocusPainted(false);
         button.setBorderPainted(false);
-        button.setOpaque(true);
+        button.setContentAreaFilled(false);
+        button.setOpaque(false);
         button.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        // 增加按钮内边距，使文字更清晰
-        button.setMargin(new Insets(8, 20, 8, 20));
+        button.setPreferredSize(new Dimension(140, 44));
 
-        final Color originalColor = bgColor;
-        button.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                if (button.isEnabled()) {
-                    button.setBackground(originalColor.darker());
-                }
-            }
+        return button;
+    }
 
+    /**
+     * 创建次要按钮（边框样式）
+     */
+    private JButton createSecondaryButton(String text) {
+        JButton button = new JButton(text) {
             @Override
-            public void mouseExited(MouseEvent e) {
-                if (button.isEnabled()) {
-                    button.setBackground(originalColor);
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                if (getModel().isEnabled()) {
+                    if (getModel().isPressed()) {
+                        g2.setColor(new Color(241, 245, 249));
+                        g2.fill(new RoundRectangle2D.Float(0, 0, getWidth(), getHeight(), 8, 8));
+                    } else if (getModel().isRollover()) {
+                        g2.setColor(new Color(241, 245, 249));
+                        g2.fill(new RoundRectangle2D.Float(0, 0, getWidth(), getHeight(), 8, 8));
+                    }
                 }
+
+                // 绘制边框
+                g2.setColor(BORDER_COLOR);
+                g2.draw(new RoundRectangle2D.Float(0, 0, getWidth() - 1, getHeight() - 1, 8, 8));
+                g2.dispose();
+
+                super.paintComponent(g);
             }
-        });
+        };
+
+        button.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
+        button.setForeground(TEXT_SECONDARY);
+        button.setFocusPainted(false);
+        button.setBorderPainted(false);
+        button.setContentAreaFilled(false);
+        button.setOpaque(false);
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        button.setPreferredSize(new Dimension(140, 44));
 
         return button;
     }
@@ -163,85 +212,96 @@ public class LicenseDialog extends JDialog {
         JPanel mainPanel = new JPanel();
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
         mainPanel.setBackground(BG_COLOR);
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 30, 20, 30));
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0));
 
-        // 标题
+        // ===== 顶部标题栏（渐变色） =====
+        JPanel headerPanel = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                // 绘制渐变背景
+                GradientPaint gradient = new GradientPaint(
+                        0, 0, new Color(59, 130, 246),
+                        getWidth(), 0, new Color(37, 99, 235)
+                );
+                g2.setPaint(gradient);
+                g2.fillRect(0, 0, getWidth(), getHeight());
+                g2.dispose();
+            }
+        };
+        headerPanel.setLayout(new BoxLayout(headerPanel, BoxLayout.Y_AXIS));
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(28, 30, 28, 30));
+        headerPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 120));
+        headerPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
         JLabel lblTitle = new JLabel("Spring API Tester");
-        lblTitle.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 20));
-        lblTitle.setForeground(PRIMARY_COLOR);
+        lblTitle.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 22));
+        lblTitle.setForeground(Color.WHITE);
         lblTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         JLabel lblSubtitle = new JLabel("软件激活");
-        lblSubtitle.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 16));
-        lblSubtitle.setForeground(INFO_COLOR);
+        lblSubtitle.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 14));
+        lblSubtitle.setForeground(new Color(191, 219, 254));
         lblSubtitle.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        // 机器码区域
-        JPanel machineCodePanel = new JPanel();
-        machineCodePanel.setLayout(new BoxLayout(machineCodePanel, BoxLayout.Y_AXIS));
-        machineCodePanel.setBackground(BG_COLOR);
-        machineCodePanel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        machineCodePanel.setBorder(BorderFactory.createTitledBorder(
-                BorderFactory.createLineBorder(new Color(220, 220, 220)),
-                " 机器码 ",
-                TitledBorder.LEFT,
-                TitledBorder.TOP,
-                new Font(Font.SANS_SERIF, Font.BOLD, 12),
-                INFO_COLOR
+        headerPanel.add(lblTitle);
+        headerPanel.add(Box.createVerticalStrut(6));
+        headerPanel.add(lblSubtitle);
+
+        // ===== 内容卡片 =====
+        JPanel cardPanel = new JPanel();
+        cardPanel.setLayout(new BoxLayout(cardPanel, BoxLayout.Y_AXIS));
+        cardPanel.setBackground(CARD_COLOR);
+        cardPanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 1, 1, 1, BORDER_COLOR),
+                BorderFactory.createEmptyBorder(24, 28, 24, 28)
         ));
+        cardPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        JLabel lblMachineCodeHint = new JLabel("请将此机器码发送给管理员获取激活码");
+        // 机器码区域
+        JLabel lblMachineCodeTitle = new JLabel("机器码");
+        lblMachineCodeTitle.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 13));
+        lblMachineCodeTitle.setForeground(TEXT_SECONDARY);
+        lblMachineCodeTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JLabel lblMachineCodeHint = new JLabel("双击复制，发送给管理员获取激活码");
         lblMachineCodeHint.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 11));
-        lblMachineCodeHint.setForeground(Color.GRAY);
-        lblMachineCodeHint.setAlignmentX(Component.CENTER_ALIGNMENT);
+        lblMachineCodeHint.setForeground(INFO_COLOR);
+        lblMachineCodeHint.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        txtMachineCode.setAlignmentX(Component.CENTER_ALIGNMENT);
-        txtMachineCode.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
-
-        machineCodePanel.add(Box.createVerticalStrut(5));
-        machineCodePanel.add(lblMachineCodeHint);
-        machineCodePanel.add(Box.createVerticalStrut(8));
-        machineCodePanel.add(txtMachineCode);
-        machineCodePanel.add(Box.createVerticalStrut(5));
+        txtMachineCode.setAlignmentX(Component.LEFT_ALIGNMENT);
+        txtMachineCode.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
 
         // 激活码区域
-        JPanel licenseKeyPanel = new JPanel();
-        licenseKeyPanel.setLayout(new BoxLayout(licenseKeyPanel, BoxLayout.Y_AXIS));
-        licenseKeyPanel.setBackground(BG_COLOR);
-        licenseKeyPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        licenseKeyPanel.setBorder(BorderFactory.createTitledBorder(
-                BorderFactory.createLineBorder(new Color(220, 220, 220)),
-                " 激活码 ",
-                TitledBorder.LEFT,
-                TitledBorder.TOP,
-                new Font(Font.SANS_SERIF, Font.BOLD, 12),
-                INFO_COLOR
-        ));
+        JLabel lblLicenseKeyTitle = new JLabel("激活码");
+        lblLicenseKeyTitle.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 13));
+        lblLicenseKeyTitle.setForeground(TEXT_SECONDARY);
+        lblLicenseKeyTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        txtLicenseKey.setAlignmentX(Component.CENTER_ALIGNMENT);
-        txtLicenseKey.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
-
-        licenseKeyPanel.add(Box.createVerticalStrut(5));
-        licenseKeyPanel.add(txtLicenseKey);
-        licenseKeyPanel.add(Box.createVerticalStrut(5));
+        txtLicenseKey.setAlignmentX(Component.LEFT_ALIGNMENT);
+        txtLicenseKey.setMaximumSize(new Dimension(Integer.MAX_VALUE, 46));
 
         // 按钮区域
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 5));
-        buttonPanel.setBackground(BG_COLOR);
-        buttonPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 12, 0));
+        buttonPanel.setBackground(CARD_COLOR);
+        buttonPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
         buttonPanel.add(btnActivate);
         buttonPanel.add(btnTrial);
 
-        // 协议区域
-        JPanel agreementPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 5));
-        agreementPanel.setBackground(BG_COLOR);
-        agreementPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        // 协议区域 - 使用BoxLayout确保水平排列
+        JPanel agreementPanel = new JPanel();
+        agreementPanel.setLayout(new BoxLayout(agreementPanel, BoxLayout.X_AXIS));
+        agreementPanel.setBackground(CARD_COLOR);
+        agreementPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
         agreementPanel.add(chkAgreement);
+        agreementPanel.add(Box.createHorizontalStrut(8));
 
         // 用户协议链接
-        JLabel lblAgreementLink = new JLabel("<html><a href=''>查看用户协议</a></html>");
-        lblAgreementLink.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 11));
-        lblAgreementLink.setForeground(PRIMARY_COLOR);
+        JLabel lblAgreementLink = new JLabel("<html><a href='' style='color:#3B82F6;text-decoration:none;'>查看用户协议</a></html>");
+        lblAgreementLink.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
         lblAgreementLink.setCursor(new Cursor(Cursor.HAND_CURSOR));
         lblAgreementLink.addMouseListener(new MouseAdapter() {
             @Override
@@ -250,25 +310,68 @@ public class LicenseDialog extends JDialog {
             }
         });
         agreementPanel.add(lblAgreementLink);
+        agreementPanel.add(Box.createHorizontalGlue());
+
+        // 状态区域
+        JPanel statusPanel = new JPanel();
+        statusPanel.setLayout(new BoxLayout(statusPanel, BoxLayout.Y_AXIS));
+        statusPanel.setBackground(CARD_COLOR);
+        statusPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        statusPanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(1, 0, 0, 0, BORDER_COLOR),
+                BorderFactory.createEmptyBorder(16, 0, 0, 0)
+        ));
+
+        lblStatus.setAlignmentX(Component.CENTER_ALIGNMENT);
+        lblTrialInfo.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        statusPanel.add(lblStatus);
+        statusPanel.add(Box.createVerticalStrut(6));
+        statusPanel.add(lblTrialInfo);
+
+        // 组装卡片
+        cardPanel.add(lblMachineCodeTitle);
+        cardPanel.add(Box.createVerticalStrut(4));
+        cardPanel.add(lblMachineCodeHint);
+        cardPanel.add(Box.createVerticalStrut(8));
+        cardPanel.add(txtMachineCode);
+        cardPanel.add(Box.createVerticalStrut(20));
+        cardPanel.add(lblLicenseKeyTitle);
+        cardPanel.add(Box.createVerticalStrut(8));
+        cardPanel.add(txtLicenseKey);
+        cardPanel.add(Box.createVerticalStrut(20));
+        cardPanel.add(buttonPanel);
+        cardPanel.add(Box.createVerticalStrut(16));
+        cardPanel.add(agreementPanel);
+        cardPanel.add(Box.createVerticalStrut(16));
+        cardPanel.add(statusPanel);
+
+        // ===== 底部作者信息 =====
+        JPanel footerPanel = new JPanel();
+        footerPanel.setLayout(new BoxLayout(footerPanel, BoxLayout.Y_AXIS));
+        footerPanel.setBackground(BG_COLOR);
+        footerPanel.setBorder(BorderFactory.createEmptyBorder(16, 0, 16, 0));
+        footerPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JLabel lblAuthor = new JLabel("作者: cc");
+        lblAuthor.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
+        lblAuthor.setForeground(TEXT_SECONDARY);
+        lblAuthor.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JLabel lblEmail = new JLabel("邮箱: 781100522@qq.com");
+        lblEmail.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
+        lblEmail.setForeground(TEXT_SECONDARY);
+        lblEmail.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        footerPanel.add(lblAuthor);
+        footerPanel.add(Box.createVerticalStrut(2));
+        footerPanel.add(lblEmail);
 
         // 组装主面板
-        mainPanel.add(lblTitle);
-        mainPanel.add(Box.createVerticalStrut(5));
-        mainPanel.add(lblSubtitle);
-        mainPanel.add(Box.createVerticalStrut(15));
-        mainPanel.add(machineCodePanel);
-        mainPanel.add(Box.createVerticalStrut(10));
-        mainPanel.add(licenseKeyPanel);
-        mainPanel.add(Box.createVerticalStrut(10));
-        mainPanel.add(agreementPanel);
-        mainPanel.add(Box.createVerticalStrut(10));
-        mainPanel.add(buttonPanel);
-        mainPanel.add(Box.createVerticalStrut(10));
-        mainPanel.add(lblStatus);
-        mainPanel.add(Box.createVerticalStrut(5));
-        mainPanel.add(lblTrialInfo);
-        mainPanel.add(Box.createVerticalStrut(10));
-        mainPanel.add(lblAuthorInfo);
+        mainPanel.add(headerPanel);
+        mainPanel.add(Box.createVerticalStrut(-1)); // 消除间隙
+        mainPanel.add(cardPanel);
+        mainPanel.add(footerPanel);
 
         setContentPane(mainPanel);
     }
@@ -397,9 +500,10 @@ public class LicenseDialog extends JDialog {
     private void updateUIState() {
         int remainingDays = licenseManager.getTrialRemainingDays();
         if (remainingDays > 0) {
-            btnTrial.setText("试用 (" + remainingDays + "天)");
+            btnTrial.setText("免费试用 " + remainingDays + " 天");
             btnTrial.setEnabled(true);
             lblTrialInfo.setText("试用期剩余 " + remainingDays + " 天");
+            lblTrialInfo.setForeground(WARNING_COLOR);
         } else {
             btnTrial.setText("试用已过期");
             btnTrial.setEnabled(false);
@@ -420,6 +524,12 @@ public class LicenseDialog extends JDialog {
                         "4. 试用期为3天，过期后需要激活才能继续使用。\n" +
                         "5. 一机一码绑定，激活码仅限当前设备使用。\n" +
                         "6. 作者保留对本软件的所有权利。\n\n" +
+                        "退款规则：\n" +
+                        "- 激活后7天内可申请退款\n" +
+                        "- 已使用超过7天不支持退款\n\n" +
+                        "隐私声明：\n" +
+                        "- 仅收集机器码用于设备绑定\n" +
+                        "- 不收集任何个人隐私信息\n\n" +
                         "作者: cc\n" +
                         "邮箱: 781100522@qq.com"
         );
@@ -431,25 +541,15 @@ public class LicenseDialog extends JDialog {
         textArea.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         JScrollPane scrollPane = new JScrollPane(textArea);
-        scrollPane.setPreferredSize(new Dimension(400, 300));
+        scrollPane.setPreferredSize(new Dimension(420, 320));
 
         JOptionPane.showMessageDialog(this, scrollPane, "用户协议", JOptionPane.PLAIN_MESSAGE);
     }
 
-    /**
-     * 是否已激活
-     *
-     * @return 是否已激活
-     */
     public boolean isActivated() {
         return activated;
     }
 
-    /**
-     * 是否已启用试用
-     *
-     * @return 是否已启用试用
-     */
     public boolean isTrialStarted() {
         return trialStarted;
     }
